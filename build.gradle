@@ -1,0 +1,80 @@
+buildscript {
+  ext.kotlin_version = '1.2.30'
+
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+  }
+}
+
+group 'kz.pompei'
+version '0.0.1'
+
+apply plugin: 'groovy'
+apply plugin: 'java'
+apply plugin: 'kotlin'
+apply plugin: 'idea'
+apply plugin: 'maven'
+
+sourceCompatibility = 1.8
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+  compile 'org.codehaus.groovy:groovy-all:2.3.11'
+
+  testCompile 'org.testng:testng:6.11'
+}
+
+compileKotlin {
+  kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+  kotlinOptions.jvmTarget = "1.8"
+}
+
+compileJava.options.encoding = 'UTF-8'
+compileTestJava.options.encoding = 'UTF-8'
+
+sourceSets.main.java.srcDirs = ["src"]
+sourceSets.main.kotlin.srcDirs = ["src_kotlin"]
+sourceSets.main.groovy.srcDirs = ["src_groovy"]
+sourceSets.main.resources.srcDirs = ["src_resources"]
+sourceSets.test.java.srcDirs = ["test_src"]
+sourceSets.test.kotlin.srcDirs = ["test_src_kotlin"]
+sourceSets.test.groovy.srcDirs = ["test_src_groovy"]
+sourceSets.test.resources.srcDirs = ["test_resources"]
+
+processResources {
+  with copySpec {
+    from "src"
+    exclude "**/*.java"
+  }
+  with copySpec {
+    from "src_kotlin"
+    exclude "**/*.kt"
+  }
+  with copySpec {
+    from "src_groovy"
+    exclude "**/*.groovy"
+  }
+}
+processTestResources {
+  with copySpec {
+    from "test_src"
+    exclude "**/*.java"
+  }
+  with copySpec {
+    from "test_src_kotlin"
+    exclude "**/*.kt"
+  }
+  with copySpec {
+    from "test_src_groovy"
+    exclude "**/*.groovy"
+  }
+}
