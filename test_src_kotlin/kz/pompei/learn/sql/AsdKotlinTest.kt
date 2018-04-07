@@ -5,6 +5,8 @@ import org.testng.annotations.Test
 class AsdKotlinTest {
   @Test
   fun testHelloWorld() {
-    AsdKotlin()
+    val x = AsdKotlin()
+    x.name = "asd";
+    println(x)
   }
 }
