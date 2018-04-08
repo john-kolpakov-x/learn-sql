@@ -1,0 +1,7 @@
+Артемий element.innertext() = [[разг.]]
+Гали element.innertext() = [[нескл.]]
+Додо element.innertext() = [[нескл.]]
+Исе element.innertext() = [[нескл.]]
+Мариам element.innertext() = [[нескл.]]
+Марьям element.innertext() = [[нескл.]]
+Нелли element.innertext() = [[нескл.]]

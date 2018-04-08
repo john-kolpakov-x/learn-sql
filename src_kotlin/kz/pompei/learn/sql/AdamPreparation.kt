@@ -10,6 +10,7 @@ class AdamPreparation(private val con: Connection) {
 
   private val logger: Logger = createLogger(javaClass)
   var adamCount: Int = 10
+  var maxBatchSize: Int = 1000
   private val idGenerator = IdGenerator()
 
   private fun exec(sql: String) {
@@ -56,6 +57,6 @@ class AdamPreparation(private val con: Connection) {
   }
 
   private fun loadRndAdamToDb() {
-
+    con.prepareStatement("insert into adam (id, surname, name, patronymic)")
   }
 }
