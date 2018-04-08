@@ -1,6 +1,6 @@
 package kz.pompei.learn.sql.preparation
 
-import kz.pompei.learn.sql.IdGenerator
+import kz.pompei.learn.sql.Rnd
 import kz.pompei.learn.sql.logging.Logger
 import kz.pompei.learn.sql.logging.Logger.Companion.createLogger
 import kz.pompei.learn.sql.logging.SqlStateError
@@ -12,7 +12,8 @@ class AdamPreparation(private val con: Connection) {
   private val logger: Logger = createLogger(javaClass)
   var adamCount: Int = 10
   var maxBatchSize: Int = 1000
-  private val gen = IdGenerator()
+  private val rnd = Rnd()
+
 
   private fun exec(sql: String) {
     con.createStatement().use { statement ->
@@ -71,13 +72,13 @@ class AdamPreparation(private val con: Connection) {
 
         for (i in 0 until adamCount) {
 
-          ps.setString(1, gen.newId())
-          val gender = Gender.values()[gen.rnd.nextInt(Gender.values().size)]
+          ps.setString(1, rnd.id())
+          val gender = rnd.someOf(Gender.values())
           ps.setString(2, gender.name)
-          ps.setString(3, gender.rndSurname(res, gen.rnd))
-          ps.setString(4, gender.rndName(res, gen.rnd))
-          ps.setString(5, gender.rndPatronymic(res, gen.rnd))
-          ps.setDate(6, java.sql.Date(gen.dateYears(if (gen.rnd.nextBoolean()) -40 else -80, -17).time))
+          ps.setString(3, gender.rndSurname(res, rnd.rnd))
+          ps.setString(4, gender.rndName(res, rnd.rnd))
+          ps.setString(5, gender.rndPatronymic(res, rnd.rnd))
+          ps.setDate(6, java.sql.Date(rnd.dateYears(if (rnd.rnd.nextBoolean()) -40 else -80, -17).time))
           ps.addBatch()
           batchSize++
 
@@ -121,7 +122,7 @@ class AdamPreparation(private val con: Connection) {
 
         for (streetType in res.streetList.map { it.type }.distinct().sorted()) {
 
-          ps.setString(1, gen.newId())
+          ps.setString(1, rnd.id())
           ps.setString(2, streetType)
 
           ps.addBatch()
@@ -181,7 +182,7 @@ class AdamPreparation(private val con: Connection) {
 
         for (street in res.streetList) {
 
-          ps.setString(1, gen.newId())
+          ps.setString(1, rnd.id())
           ps.setString(2, streetTypeIdMap[street.type])
           ps.setString(3, street.name)
 
@@ -276,10 +277,10 @@ class AdamPreparation(private val con: Connection) {
       ).use { ps ->
 
         for (adamId in adamIdList) {
-          val streetId = streetIdList[gen.rnd.nextInt(streetIdList.size)]
+          val streetId = rnd.someOf(streetIdList)
           val address = nextAddress(addressSet, streetId)
 
-          ps.setString(1, gen.newId())
+          ps.setString(1, rnd.id())
           ps.setString(2, adamId)
           ps.setString(3, streetId)
           ps.setInt(4, address.house)
