@@ -34,8 +34,10 @@ class AdamPreparation(private val con: Connection) {
 
     fillAdamIdList()
 
-    loadRndAdamToDb()
+    uploadRndAdamToDb()
+    uploadStreetsToDb()
   }
+
 
   private val adamIdList: MutableList<String> = ArrayList()
 
@@ -48,29 +50,32 @@ class AdamPreparation(private val con: Connection) {
   }
 
   private fun createStructure() {
-    exec("create type gender_type as enum ('MALE', 'FEMALE')")
+    createTableAdam()
+    createTableStreet()
+  }
 
+
+  private fun createTableAdam() {
     exec("create table adam (\n" +
       "  id varchar(30),\n" +
       "  surname varchar(300),\n" +
       "  name varchar(300),\n" +
       "  patronymic varchar(300),\n" +
-      "  gender gender_type,\n" +
+      "  gender varchar(10),\n" +
       "  primary key(id)\n" +
       ")")
   }
 
   val res = GenResources()
 
-  private fun loadRndAdamToDb() {
-
+  private fun uploadRndAdamToDb() {
 
     con.autoCommit = false
     try {
 
       var batchSize = 0
       con.prepareStatement(
-        "INSERT INTO adam (id, gender, surname, name, patronymic) VALUES (?,?::GENDER_TYPE,?,?,?)"
+        "INSERT INTO adam (id, gender, surname, name, patronymic) VALUES (?,?,?,?,?)"
       ).use { ps ->
 
         for (i in 0 until adamCount) {
@@ -104,4 +109,108 @@ class AdamPreparation(private val con: Connection) {
     }
 
   }
+
+  private fun createTableStreet() {
+    exec("create table street_type (\n" +
+      "  id varchar(30) not null,\n" +
+      "  name varchar(300) not null unique,\n" +
+      "  primary key (id)\n" +
+      ")")
+    exec("create table street (\n" +
+      "  id varchar(30) not null,\n" +
+      "  name varchar(300) not null,\n" +
+      "  type_id varchar(30) not null references street_type,\n" +
+      "  primary key (id)\n" +
+      ")")
+  }
+
+  private fun uploadStreetTypes() {
+    con.autoCommit = false
+    try {
+
+      var batchSize = 0
+      con.prepareStatement(
+        "INSERT INTO street_type (id, name) VALUES (?,?) ON CONFLICT DO NOTHING"
+      ).use { ps ->
+
+        for (streetType in res.streetList.map { it.type }.distinct().sorted()) {
+
+          ps.setString(1, idGenerator.newId())
+          ps.setString(2, streetType)
+
+          ps.addBatch()
+          batchSize++
+
+          if (batchSize >= maxBatchSize) {
+            ps.executeBatch()
+            con.commit()
+            batchSize = 0
+          }
+        }
+
+        if (batchSize > 0) {
+          ps.executeBatch()
+          con.commit()
+        }
+      }
+
+    } catch (e: SQLException) {
+      throw e.nextException
+    } finally {
+      con.autoCommit = true
+    }
+  }
+
+  private fun getStreetTypeNameToIdMap(): Map<String, String> {
+    con.prepareStatement("SELECT * FROM street_type").use { ps ->
+      ps.executeQuery().use { rs ->
+        val ret: MutableMap<String, String> = HashMap()
+        while (rs.next()) ret[rs.getString("name")] = rs.getString("id")
+        return ret
+      }
+    }
+  }
+
+  private fun uploadStreetsToDb() {
+
+    uploadStreetTypes()
+    val streetTypeIdMap = getStreetTypeNameToIdMap()
+
+    con.autoCommit = false
+    try {
+
+      var batchSize = 0
+      con.prepareStatement(
+        "INSERT INTO street (id, type_id, name) VALUES (?,?,?) ON CONFLICT DO NOTHING"
+      ).use { ps ->
+
+        for (street in res.streetList) {
+
+          ps.setString(1, idGenerator.newId())
+          ps.setString(2, streetTypeIdMap[street.type])
+          ps.setString(3, street.name)
+
+          ps.addBatch()
+          batchSize++
+
+          if (batchSize >= maxBatchSize) {
+            ps.executeBatch()
+            con.commit()
+            batchSize = 0
+          }
+        }
+
+        if (batchSize > 0) {
+          ps.executeBatch()
+          con.commit()
+        }
+      }
+
+    } catch (e: SQLException) {
+      throw e.nextException
+    } finally {
+      con.autoCommit = true
+    }
+  }
+
 }

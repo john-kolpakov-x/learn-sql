@@ -5,6 +5,7 @@ import com.codeborne.selenide.SelenideElement;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
 import org.testng.annotations.Test;
 
@@ -274,5 +275,25 @@ public class GrubSiteTest {
     Stream<String> s3 = Files.lines(Paths.get("build", "names_patronymics3.rus.txt"));
 
     saveToFile(Stream.concat(s1, Stream.concat(s2, s3)).sorted(), "names_patronymics.FINISH.rus.txt");
+  }
+
+  @Test
+  public void grub_streets() throws Exception {
+    Document doc = Jsoup.connect("http://silkadv.com/ru/node/369").get();
+
+    Elements elements = doc.select("#node-369 > div > div > div.art-post-inner.art-article > div.art-postcontent" +
+      " > div.field.field-name-body.field-type-text-with-summary.field-label-hidden > div" +
+      " > div > p:nth-child(4) > strong");
+
+    File file = Paths.get("build", "streets.txt").toFile();
+    file.getParentFile().mkdirs();
+
+    try (PrintStream pr = new PrintStream(file, "UTF-8")) {
+      for (Element element : elements) {
+        pr.println(element.text());
+      }
+    }
+
+
   }
 }
