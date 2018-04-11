@@ -8,6 +8,7 @@ private const val ENG = "abcdefghijklmnopqrstuvwxyz"
 private const val DEG = "01234567890"
 private val ALL = DEG + ENG + ENG.toLowerCase()
 private val ALL_CHARS: CharArray = ALL.toCharArray()
+private val DEG_CHARS: CharArray = DEG.toCharArray()
 
 private val ID_LEN = 13
 
@@ -21,7 +22,7 @@ class Rnd {
 
   fun id(): String {
     val ca = CharArray(ID_LEN)
-    for (i in 0 until ID_LEN) {
+    for (i in 0 until ca.size) {
       ca[i] = ALL_CHARS[rnd.nextInt(ALL_CHARS.size)]
     }
     return String(ca)
@@ -47,5 +48,19 @@ class Rnd {
     }
     val time = from + plusLong(to - from)
     return Date(time)
+  }
+
+  fun accountNumber(): String {
+    val ca = CharArray(20)
+    for (i in 0 until ca.size) {
+      ca[i] = DEG_CHARS[rnd.nextInt(DEG_CHARS.size)]
+    }
+
+    val s = String(ca)
+
+    val u = someOf(Arrays.asList("KZ", "RU", "BR"))
+
+    return "${s.subSequence(0, 1)}$u-${s.subSequence(1, 4)}-${s.subSequence(4, 10)}-${s.subSequence(10, 13)}" +
+      "-${s.subSequence(13, 20)}"
   }
 }

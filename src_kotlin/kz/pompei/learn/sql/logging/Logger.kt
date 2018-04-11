@@ -42,4 +42,20 @@ class Logger {
     }
   }
 
+  fun errorDelay(delayNanos: Long, e: Throwable) {
+    if (nativeLogger.isErrorEnabled) {
+      nativeLogger.error("${makeDelayPart(delayNanos)} ${e.message}")
+    }
+  }
+
+  fun info(message: () -> String) {
+    if (!nativeLogger.isInfoEnabled) return
+    nativeLogger.info(message())
+  }
+
+  fun error(error: Throwable) {
+    if (nativeLogger.isErrorEnabled) {
+      nativeLogger.error(error.message, error)
+    }
+  }
 }

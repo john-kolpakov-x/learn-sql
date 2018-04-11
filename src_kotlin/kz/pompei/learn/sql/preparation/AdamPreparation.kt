@@ -6,14 +6,14 @@ import kz.pompei.learn.sql.logging.Logger.Companion.createLogger
 import kz.pompei.learn.sql.logging.SqlStateError
 import java.sql.Connection
 import java.sql.SQLException
+import java.util.*
 
 class AdamPreparation(private val con: Connection) {
 
   private val logger: Logger = createLogger(javaClass)
   var adamCount: Int = 10
-  var maxBatchSize: Int = 1000
+  var maxBatchSize: Int = 5000
   private val rnd = Rnd()
-
 
   private fun exec(sql: String) {
     con.createStatement().use { statement ->
@@ -30,20 +30,24 @@ class AdamPreparation(private val con: Connection) {
     }
   }
 
+  private fun createStructure() {
+    createTableAdam()
+    createTableStreetType()
+    createTableStreet()
+    createTableAdamLive()
+    createTableAccount()
+    createTableTransactionType()
+    createTableTransaction()
+  }
+
   fun prepare() {
     createStructure()
 
     uploadRndAdamToDb()
     uploadStreetsToDb()
     uploadAdamLives()
-  }
-
-
-  private fun createStructure() {
-    createTableAdam()
-    createTableStreetType()
-    createTableStreet()
-    createTableAdamLive()
+    uploadAccounts()
+    uploadInitialAccountTransactions()
   }
 
   private fun createTableAdam() {
@@ -61,6 +65,11 @@ class AdamPreparation(private val con: Connection) {
   val res = GenResources()
 
   private fun uploadRndAdamToDb() {
+
+    val operation = "loading table adam: adam count = $adamCount"
+
+    logger.info { "Started $operation" }
+    val startedAt = System.nanoTime()
 
     con.autoCommit = false
     try {
@@ -95,8 +104,10 @@ class AdamPreparation(private val con: Connection) {
         }
       }
 
+      logger.infoDelay(System.nanoTime() - startedAt) { "Finished $operation" }
     } catch (e: SQLException) {
-      throw e.nextException
+      logger.errorDelay(System.nanoTime() - startedAt, e.nextException)
+      throw RuntimeException(e.message, e.nextException)
     } finally {
       con.autoCommit = true
     }
@@ -169,8 +180,14 @@ class AdamPreparation(private val con: Connection) {
 
   private fun uploadStreetsToDb() {
 
+    val operation = "loading table street"
+
+    logger.info { "Started $operation" }
+    val startedAt = System.nanoTime()
+
     uploadStreetTypes()
     val streetTypeIdMap = getStreetTypeNameToIdMap()
+    var count = 0
 
     con.autoCommit = false
     try {
@@ -192,6 +209,7 @@ class AdamPreparation(private val con: Connection) {
           if (batchSize >= maxBatchSize) {
             ps.executeBatch()
             con.commit()
+            count += batchSize
             batchSize = 0
           }
         }
@@ -199,11 +217,15 @@ class AdamPreparation(private val con: Connection) {
         if (batchSize > 0) {
           ps.executeBatch()
           con.commit()
+          count += batchSize
+          batchSize = 0
         }
       }
 
+      logger.infoDelay(System.nanoTime() - startedAt) { "Finished $operation: count = $count" }
     } catch (e: SQLException) {
-      throw e.nextException
+      logger.errorDelay(System.nanoTime() - startedAt, "Finished $operation: count = $count", e.nextException)
+      throw RuntimeException(e.message, e.nextException)
     } finally {
       con.autoCommit = true
     }
@@ -268,6 +290,13 @@ class AdamPreparation(private val con: Connection) {
     val streetIdList = getStreetIdList()
     val addressSet: MutableSet<Address> = hashSetOf()
 
+    val operation = "loading table adam_live"
+
+    logger.info { "Started $operation" }
+    val startedAt = System.nanoTime()
+
+    var count = 0
+
     con.autoCommit = false
     try {
 
@@ -292,6 +321,7 @@ class AdamPreparation(private val con: Connection) {
           if (batchSize >= maxBatchSize) {
             ps.executeBatch()
             con.commit()
+            count += batchSize
             batchSize = 0
           }
         }
@@ -299,13 +329,136 @@ class AdamPreparation(private val con: Connection) {
         if (batchSize > 0) {
           ps.executeBatch()
           con.commit()
+          count += batchSize
+          batchSize = 0
         }
       }
 
+      logger.infoDelay(System.nanoTime() - startedAt) { "Finished $operation: count = $count" }
     } catch (e: SQLException) {
-      throw e
+      logger.errorDelay(System.nanoTime() - startedAt, "Finished $operation: count = $count", e.nextException)
+      throw RuntimeException(e.message, e.nextException)
     } finally {
       con.autoCommit = true
     }
+  }
+
+  private fun createTableAccount() {
+    exec("create table account (\n" +
+      "  id varchar(30) not null,\n" +
+      "  account_number varchar(30) not null unique,\n" +
+      "  adam_id varchar(30) not null references adam,\n" +
+      "  state varchar(15) not null check(state in ('CREATED', 'ACTIVE', 'BLOCKED', 'CLOSED')),\n" +
+      "  primary key(id)\n" +
+      ")")
+  }
+
+  private fun uploadAccounts() {
+    val adamIdList = getAdamIdList()
+
+    val operation = "loading table account"
+
+    logger.info { "Started $operation" }
+    val startedAt = System.nanoTime()
+
+    var count = 0
+
+    con.autoCommit = false
+    try {
+
+      var batchSize = 0
+      con.prepareStatement(
+        "INSERT INTO account (id, account_number, adam_id, state) VALUES (?,?,?,?)"
+      ).use { ps ->
+
+        for (i in 0 until 2 * adamIdList.size) {
+          ps.setString(1, rnd.id())
+          ps.setString(2, rnd.accountNumber())
+          ps.setString(3, rnd.someOf(adamIdList))
+          ps.setString(4, rnd.someOf(Arrays.asList("ACTIVE", "BLOCKED")))
+
+          ps.addBatch()
+          batchSize++
+
+          if (batchSize >= maxBatchSize) {
+            ps.executeBatch()
+            con.commit()
+            count += batchSize
+            batchSize = 0
+          }
+        }
+
+        if (batchSize > 0) {
+          ps.executeBatch()
+          con.commit()
+          count += batchSize
+          batchSize = 0
+        }
+      }
+
+      logger.infoDelay(System.nanoTime() - startedAt) { "Finished $operation: count = $count" }
+    } catch (e: SQLException) {
+      logger.errorDelay(System.nanoTime() - startedAt, "Finished $operation: count = $count", e.nextException)
+      throw RuntimeException(e.message, e.nextException)
+    } finally {
+      con.autoCommit = true
+    }
+  }
+
+
+  private fun prepareTransactionTypes(): Map<String, String> {
+    val types = loadTransactionTypes()
+
+    TransactionType.values().forEach { tt ->
+      if (!types.containsKey(tt.name)) {
+        con.prepareStatement("INSERT INTO transaction_type (id, code, description) VALUES (?,?,?)").use { ps ->
+          ps.setString(1, rnd.id())
+          ps.setString(2, tt.name)
+          ps.setString(3, tt.description)
+          ps.executeUpdate()
+        }
+      }
+    }
+
+    return loadTransactionTypes()
+  }
+
+  private fun createTableTransactionType() {
+    exec("create table transaction_type (\n" +
+      "  id varchar(30),\n" +
+      "  code varchar(50) not null unique,\n" +
+      "  description varchar(300) not null,\n" +
+      "  primary key(id)\n" +
+      ")")
+  }
+
+  private fun loadTransactionTypes(): Map<String, String> {
+    con.prepareStatement("SELECT code, id FROM transaction_type").use { ps ->
+      ps.executeQuery().use { rs ->
+        val ret = hashMapOf<String, String>()
+        while (rs.next()) ret.put(rs.getString("code"), rs.getString("id"));
+        return ret
+      }
+    }
+  }
+
+  private fun createTableTransaction() {
+    exec("create table t_operation (\n" +
+      "  id varchar(30),\n" +
+      "  amount numeric(24, 4) not null,\n" +
+      "  primary key(id)\n" +
+      ")")
+    exec("create table transaction (\n" +
+      "  id varchar(30),\n" +
+      "  account_id varchar(30) not null references account,\n" +
+      "     type_id varchar(30) not null references transaction_type,\n" +
+      "  refill tinyint not null check(refill in (+1, -1)),\n" +
+      "  amount numeric(24, 4) not null,\n" +
+      "  primary key(id)\n" + //TODO here
+      ")")
+  }
+
+  private fun uploadInitialAccountTransactions() {
+    val types = prepareTransactionTypes()
   }
 }
