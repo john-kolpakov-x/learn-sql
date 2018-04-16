@@ -36,8 +36,6 @@ class AdamPreparation(private val con: Connection) {
     createTableStreet()
     createTableAdamLive()
     createTableAccount()
-    createTableTransactionType()
-    createTableTransaction()
   }
 
   fun prepare() {
@@ -47,7 +45,6 @@ class AdamPreparation(private val con: Connection) {
     uploadStreetsToDb()
     uploadAdamLives()
     uploadAccounts()
-    uploadInitialAccountTransactions()
   }
 
   private fun createTableAdam() {
@@ -405,60 +402,4 @@ class AdamPreparation(private val con: Connection) {
     }
   }
 
-
-  private fun prepareTransactionTypes(): Map<String, String> {
-    val types = loadTransactionTypes()
-
-    TransactionType.values().forEach { tt ->
-      if (!types.containsKey(tt.name)) {
-        con.prepareStatement("INSERT INTO transaction_type (id, code, description) VALUES (?,?,?)").use { ps ->
-          ps.setString(1, rnd.id())
-          ps.setString(2, tt.name)
-          ps.setString(3, tt.description)
-          ps.executeUpdate()
-        }
-      }
-    }
-
-    return loadTransactionTypes()
-  }
-
-  private fun createTableTransactionType() {
-    exec("create table transaction_type (\n" +
-      "  id varchar(30),\n" +
-      "  code varchar(50) not null unique,\n" +
-      "  description varchar(300) not null,\n" +
-      "  primary key(id)\n" +
-      ")")
-  }
-
-  private fun loadTransactionTypes(): Map<String, String> {
-    con.prepareStatement("SELECT code, id FROM transaction_type").use { ps ->
-      ps.executeQuery().use { rs ->
-        val ret = hashMapOf<String, String>()
-        while (rs.next()) ret.put(rs.getString("code"), rs.getString("id"));
-        return ret
-      }
-    }
-  }
-
-  private fun createTableTransaction() {
-    exec("create table t_operation (\n" +
-      "  id varchar(30),\n" +
-      "  amount numeric(24, 4) not null,\n" +
-      "  primary key(id)\n" +
-      ")")
-    exec("create table transaction (\n" +
-      "  id varchar(30),\n" +
-      "  account_id varchar(30) not null references account,\n" +
-      "     type_id varchar(30) not null references transaction_type,\n" +
-      "  refill tinyint not null check(refill in (+1, -1)),\n" +
-      "  amount numeric(24, 4) not null,\n" +
-      "  primary key(id)\n" + //TODO here
-      ")")
-  }
-
-  private fun uploadInitialAccountTransactions() {
-    val types = prepareTransactionTypes()
-  }
 }

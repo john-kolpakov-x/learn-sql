@@ -6,7 +6,7 @@ fun main(args: Array<String>) {
   createConnection().use { con ->
     val adamPreparation = AdamPreparation(con)
     adamPreparation.maxBatchSize = 15_000
-    adamPreparation.adamCount = 10_000
+    adamPreparation.adamCount = 100_000
     adamPreparation.prepare()
   }
 }
